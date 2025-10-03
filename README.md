@@ -71,16 +71,7 @@ Opciones avanzadas
 # por defecto N=5, o pasar N repeticiones
 ```
 
-Extensiones sugeridas
----------------------
-- Añadir un driver que acepte grafos por stdin o archivo (formato simple) para poder generar y probar instancias grandes desde scripts externos.
-- Implementar un generador de grafos en Python para crear casos de prueba aleatorios o estructurados y comparar BMSSP (práctico) contra Dijkstra en tiempo/consumo de memoria.
-- Convertir las pruebas integradas en un framework (Catch2/GoogleTest) para facilitar reporting y extensiones.
-
-Contribuciones y contacto
--------------------------
-Si quieres que implemente alguna de las extensiones anteriores (entrada por stdin, generador de grafos, driver para comparar tiempos), indícamelo y lo preparo junto con pruebas y ejemplos reproducibles.
 
 Licencia
 --------
-Incluye aquí la licencia bajo la que quieres publicar el código (por ejemplo, MIT). Si no hay preferencia, puedo añadir una plantilla MIT por ti.
+Los términos de la licencia del proyecto se deben especificar en el archivo `LICENSE` en la raíz del repositorio. 
