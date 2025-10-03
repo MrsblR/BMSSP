@@ -1,14 +1,14 @@
-# BMSSP — Bounded Multi-Source Shortest Paths (impl.)
+# BMSSP — Bounded Multi-Source Shortest Paths
 
-Resumen
-------
-Este repositorio contiene una implementación educativa y una batería de pruebas de la idea central del trabajo sobre algoritmos de shortest paths que rompen la barrera del ordenamiento para SSSP en grafos dirigidos con pesos reales no negativos. El código incluido implementa una versión práctica del sub-procedimiento BMSSP (Bounded Multi-Source Shortest Path) y unas pruebas unitarias que verifican su comportamiento frente a Dijkstra clásico.
-
-Integrantes
+### Integrantes
 ----------
 - Merisabel Ruelas Quenaya
 - Christian Pardavé Espinoza
 - Saul Condori Machaca
+
+Resumen
+------
+Este repositorio contiene una implementación educativa y una batería de pruebas de la idea central del trabajo sobre algoritmos de shortest paths que rompen la barrera del ordenamiento para SSSP en grafos dirigidos con pesos reales no negativos. El código incluido implementa una versión práctica del sub-procedimiento BMSSP (Bounded Multi-Source Shortest Path) y unas pruebas unitarias que verifican su comportamiento frente a Dijkstra clásico.
 
 
 Estado actual
