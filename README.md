@@ -5,6 +5,7 @@
 - Merisabel Ruelas Quenaya
 - Christian Pardavé Espinoza
 - Saul Condori Machaca
+- Yanira Angie Suni Quispe
 
 Resumen
 ------
