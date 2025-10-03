@@ -1,7 +1,9 @@
 # BMSSP — Bounded Multi-Source Shortest Paths
 
 ### Integrantes
+
 ----------
+
 - Merisabel Ruelas Quenaya
 - Christian Pardavé Espinoza
 - Saul Condori Machaca
@@ -11,36 +13,41 @@
 
 Resumen
 ------
-Este repositorio contiene una implementación educativa y una batería de pruebas de la idea central del trabajo sobre algoritmos de shortest paths que rompen la barrera del ordenamiento para SSSP en grafos dirigidos con pesos reales no negativos. El código incluido implementa una versión práctica del sub-procedimiento BMSSP (Bounded Multi-Source Shortest Path) y unas pruebas unitarias que verifican su comportamiento frente a Dijkstra clásico.
 
+Este repositorio contiene una implementación educativa y una batería de pruebas de la idea central del trabajo sobre algoritmos de shortest paths que rompen la barrera del ordenamiento para SSSP en grafos dirigidos con pesos reales no negativos. El código incluido implementa una versión práctica del sub-procedimiento BMSSP (Bounded Multi-Source Shortest Path) y unas pruebas unitarias que verifican su comportamiento frente a Dijkstra clásico.
 
 Estado actual
 ------------
+
 - Implementación compacta en C++ (`bmssp.cpp`) con pruebas integradas.
 - Scripts de construcción y ejecución de pruebas: `build.sh`, `build_debug.sh`, `run_tests.sh`, `bench.sh`.
 - `bin/bmssp` es el ejecutable resultante de compilar el código.
 
 Visión general del algoritmo
 -------------------------------------------
+
 La idea principal del trabajo es reducir la necesidad de mantener un orden total (como lo hace Dijkstra) aplicando:
+
 1) una partición recursiva del conjunto de vértices de interés.
 2) en cada nivel resolver un subproblema llamado BMSSP donde se conocen un conjunto de "fuentes" S y una cota superior B.
 3) técnicas para reducir la cantidad de vértices en la frontera ("pivots") usando relajaciones tipo Bellman–Ford por un número limitado de pasos.
 
 Puntos clave:
+
 - BMSSP: resuelve distancias desde múltiples fuentes hasta una cota B (no precisa ordenar todas las distancias).
 - FindPivots: mediante k relajaciones se identifican raíces de subárboles de tamaño ≥k (pivots) y un conjunto W auxiliar.
 - Estructura dinámica D (pull / batch prepend): permite extraer conjuntos pequeños de fuentes con las menores distancias y añadir bloques de valores nuevos eficientemente.
 - Parámetros: el algoritmo usa parámetros k y t:
+
 ```
 (ej.: k = log^{1/3} n, t = log^{2/3} n)
 ```
+
 y consigue tiempo teórico O(m log^{2/3} n) en el modelo comparación‑suma.
-
-
 
 Archivos y scripts
 ------------------
+
 - `bmssp.cpp` / `main.cpp` — Implementación en C++ con pruebas unitarias integradas (funciones `prueba_*`). Contienen:
   - Un Dijkstra clásico para verificación.
   - Una implementación de BMSSP simplificada: Dijkstra multi‑fuente acotado por B.
@@ -54,6 +61,7 @@ Archivos y scripts
 
 Cómo compilar y ejecutar las pruebas
 -----------------------------------
+
 1. Preparar permisos (si es necesario) y compilar:
 
 ```bash
@@ -70,7 +78,6 @@ chmod +x scripts/*.sh
 
 Salida esperada: el script ahora ejecuta primero las pruebas unitarias y, a continuación, una serie de benchmarks comparativos. La salida es más detallada e incluye tablas por cada grafo y un resumen final. Un ejemplo abreviado de la salida sería:
 
-
 3. Ejecutar solo benchmarks (sin la suite completa):
 
 ```bash
@@ -80,6 +87,7 @@ Salida esperada: el script ahora ejecuta primero las pruebas unitarias y, a cont
 
 Opciones de ejecución
 --------------------
+
 ```bash
 ./scripts/bin/bmssp              # Ejecutar tests + benchmarks
 ./scripts/bin/bmssp --tests      # Solo tests unitarios
@@ -90,21 +98,24 @@ Opciones de ejecución
 ### Algoritmos Comparados
 
 **1. Dijkstra Clásico**
+
 - Complejidad: O((V + E) log V) con heap binario
 - Características: Óptimo para grafos con pesos no negativos, usa cola de prioridad
 - Ventajas: Garantiza el camino más corto, eficiente en práctica
 - Desventajas: Requiere ordenamiento total de distancias
 
 **2. BMSSP (Bounded Multi-Source Shortest Paths)**
+
 - Complejidad: O(m log^{2/3} n) teórico
 - Características: Dijkstra multi-fuente con cota superior B
-- Ventajas: 
+- Ventajas:
   - Rompe la barrera del ordenamiento cuando se aplica cota B
   - Más eficiente con múltiples fuentes
   - Reducción de operaciones innecesarias
 - Desventajas: Requiere conocer una cota superior razonable
 
 **3. Bellman-Ford**
+
 - Complejidad: O(V × E)
 - Características: Funciona con pesos negativos, relaja todas las aristas V-1 veces
 - Ventajas: Detecta ciclos negativos, funciona con cualquier peso
@@ -116,7 +127,7 @@ La suite de benchmarks incluye 5 tipos diferentes de grafos:
 
 1. **Grafo Sparse Pequeño** (50 nodos, aproximadamente 10% densidad)
    - Simula redes con pocas conexiones
-   
+
 2. **Grafo Sparse Mediano** (100 nodos, aproximadamente 10% densidad)
    - Escala el caso sparse a más nodos
 
@@ -139,6 +150,23 @@ Para cada algoritmo se miden:
 - **Tiempo de ejecución** (en milisegundos)
 - **Nodos visitados** (cuántos nodos se procesaron)
 - **Aristas relajadas** (cuántas operaciones de relajación se realizaron)
+
+### Benchmark de Tiempos
+
+![Benchmark de Tiempos](img/benchmark_tiempos.png)
+
+**Interpretación**
+
+- **BMSSP** logra tiempos consistentemente menores que **Dijkstra** en la mayoría de escenarios.  
+- La ventaja es especialmente notoria en grafos *sparse* (pequeños y medianos).  
+- Frente a **Bellman-Ford**, la diferencia es mucho más marcada: BMSSP lo supera varias veces en velocidad.  
+
+**Interpretación**
+
+- En grafos **sparse** (pequeño y mediano) BMSSP muestra mejoras claras frente a Dijkstra (≈30% y ≈19%).
+- En el grafo **denso**, BMSSP mantiene ventaja moderada (~11%).
+- En **cadena lineal**, la diferencia con Dijkstra es pequeña (≈3%), pero BMSSP supera ampliamente a Bellman-Ford.
+- En **grid**, BMSSP y Dijkstra rinden parecido; ambos superan a Bellman-Ford.
 
 ### Resultados Esperados
 
@@ -189,6 +217,7 @@ Bellman-Ford         | Tiempo: 0.065 ms | Nodos: 100 | Aristas relajadas: 4349
 ```
 
 **Análisis**:
+
 - BMSSP es 15.4% más rápido que Dijkstra
 - BMSSP relaja 77.2% menos aristas que Bellman-Ford
 - En este grafo, BMSSP muestra clara ventaja
@@ -206,4 +235,5 @@ La implementación confirma la teoría: BMSSP rompe la barrera del ordenamiento 
 
 Licencia
 --------
-Los términos de la licencia del proyecto se deben especificar en el archivo `LICENSE` en la raíz del repositorio. 
+
+Los términos de la licencia del proyecto se deben especificar en el archivo `LICENSE` en la raíz del repositorio.
