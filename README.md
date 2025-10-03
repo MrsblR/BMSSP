@@ -6,6 +6,7 @@
 - Christian Pardavé Espinoza
 - Saul Condori Machaca
 - Yanira Angie Suni Quispe
+- Katherine Nikole Bejar Román 
 
 Resumen
 ------
