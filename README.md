@@ -161,13 +161,6 @@ Para cada algoritmo se miden:
 - La ventaja es especialmente notoria en grafos *sparse* (pequeños y medianos).  
 - Frente a **Bellman-Ford**, la diferencia es mucho más marcada: BMSSP lo supera varias veces en velocidad.  
 
-**Interpretación**
-
-- En grafos **sparse** (pequeño y mediano) BMSSP muestra mejoras claras frente a Dijkstra (≈30% y ≈19%).
-- En el grafo **denso**, BMSSP mantiene ventaja moderada (~11%).
-- En **cadena lineal**, la diferencia con Dijkstra es pequeña (≈3%), pero BMSSP supera ampliamente a Bellman-Ford.
-- En **grid**, BMSSP y Dijkstra rinden parecido; ambos superan a Bellman-Ford.
-
 ### Resultados Esperados
 
 **Ventajas de BMSSP**
