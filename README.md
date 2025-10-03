@@ -53,7 +53,39 @@ chmod +x build.sh run_tests.sh
 ./run_tests.sh
 ```
 
-Salida esperada: `Pruebas correctas` y exit code 0 cuando las pruebas pasan.
+Salida esperada: `✓ Todas las pruebas unitarias pasaron correctamente` y exit code 0.
+
+3. **Ejecutar benchmarks comparativos** (nuevo):
+
+```bash
+./scripts/bin/bmssp --benchmark
+# O usar el script completo:
+./scripts/benchmark_extendido.sh
+```
+
+Esto ejecutará comparaciones de rendimiento entre BMSSP, Dijkstra Clásico y Bellman-Ford en diferentes tipos de grafos.
+
+**Métricas comparadas:**
+- ⏱️ Tiempo de ejecución (ms)
+- 🔍 Nodos visitados
+- 🔄 Aristas relajadas
+
+**Tipos de grafos probados:**
+- Grafos sparse (dispersos)
+- Grafos densos
+- Cadenas lineales
+- Grids (rejillas)
+
+Ver `README_BENCHMARK.md` para detalles completos de los resultados y análisis.
+
+Opciones de ejecución
+--------------------
+```bash
+./scripts/bin/bmssp              # Ejecutar tests + benchmarks
+./scripts/bin/bmssp --tests      # Solo tests unitarios
+./scripts/bin/bmssp --benchmark  # Solo benchmarks comparativos
+./scripts/bin/bmssp --help       # Mostrar ayuda
+```
 
 Opciones avanzadas
 ------------------

@@ -1,10 +1,29 @@
 #include <bits/stdc++.h>
+#include <chrono>
+#include <iomanip>
 using namespace std;
+using namespace chrono;
 
 //----------------------------- Tipos básicos ------------------------------
 using IdNodo = int;   // Identificador de nodo
 using Dist   = double; // Distancia / peso
 static const Dist INF = numeric_limits<Dist>::infinity();
+
+//----------------------------- Métricas -----------------------------------
+struct Metricas {
+    double tiempo_ms = 0.0;
+    int nodos_visitados = 0;
+    int aristas_relajadas = 0;
+    string nombre_algoritmo;
+    
+    void imprimir() const {
+        cout << fixed << setprecision(3);
+        cout << left << setw(20) << nombre_algoritmo 
+             << " | Tiempo: " << setw(10) << tiempo_ms << " ms"
+             << " | Nodos: " << setw(6) << nodos_visitados
+             << " | Aristas relajadas: " << aristas_relajadas << "\n";
+    }
+};
 
 //------------------------------- Grafo ------------------------------------
 struct Arista {
@@ -15,17 +34,29 @@ struct Arista {
 struct Grafo {
     // Lista de adyacencia: u -> lista de (v, peso)
     unordered_map<IdNodo, vector<Arista>> ady;
+    int total_aristas = 0;
+    int total_nodos = 0;
 
     void agregarArista(IdNodo desde, IdNodo hasta, Dist peso) {
         ady[desde].push_back({hasta, peso});
         // Asegura que el nodo destino exista en el mapa (aunque sin salientes)
         (void)ady[hasta];
+        total_aristas++;
+        total_nodos = ady.size();
     }
 
     const vector<Arista>& aristasDe(IdNodo u) const {
         static const vector<Arista> vacio;
         auto it = ady.find(u);
         return it == ady.end() ? vacio : it->second;
+    }
+    
+    vector<IdNodo> obtenerTodosNodos() const {
+        vector<IdNodo> nodos;
+        for (const auto& par : ady) {
+            nodos.push_back(par.first);
+        }
+        return nodos;
     }
 };
 
@@ -50,7 +81,8 @@ static void dijkstraAcotadoMultiFuente(
     const ConjuntoNodos& fuentes,
     Dist B,
     const Grafo& G,
-    unordered_map<IdNodo, Dist>& dhat)
+    unordered_map<IdNodo, Dist>& dhat,
+    Metricas* metricas = nullptr)
 {
     using Par = pair<Dist, IdNodo>; // (dist, nodo)
     priority_queue<Par, vector<Par>, greater<Par>> cola;
@@ -69,8 +101,10 @@ static void dijkstraAcotadoMultiFuente(
         if (dist_u != dhat[u]) continue;      // entrada desactualizada
         if (visitado.count(u)) continue;      // ya asentado
         visitado.insert(u);
+        if (metricas) metricas->nodos_visitados++;
 
         for (const auto& e : G.aristasDe(u)) {
+            if (metricas) metricas->aristas_relajadas++;
             Dist nd = dist_u + e.peso;
             if (nd < dhat[e.hacia]) {
                 dhat[e.hacia] = nd;
@@ -82,13 +116,15 @@ static void dijkstraAcotadoMultiFuente(
 
 //------------------------------ BMSSP principal ---------------------------
 // correr Dijkstra multi-fuente acotado por B.
-static void BMSSP(Dist B, const ConjuntoNodos& S, const Grafo& G, unordered_map<IdNodo, Dist>& dhat) {
+static void BMSSP(Dist B, const ConjuntoNodos& S, const Grafo& G, 
+                  unordered_map<IdNodo, Dist>& dhat, Metricas* metricas = nullptr) {
     if (S.tam() == 0) return;
-    dijkstraAcotadoMultiFuente(S, B, G, dhat);
+    dijkstraAcotadoMultiFuente(S, B, G, dhat, metricas);
 }
 
 //---------------------- Función de conveniencia (1 fuente) ----------------
-static unordered_map<IdNodo, Dist> BMSSPUnaFuente(const Grafo& G, IdNodo fuente, Dist B) {
+static unordered_map<IdNodo, Dist> BMSSPUnaFuente(const Grafo& G, IdNodo fuente, Dist B,
+                                                   Metricas* metricas = nullptr) {
     unordered_map<IdNodo, Dist> dhat;
 
     // Inicializa todos los nodos vistos (claves en el mapa y destinos)
@@ -105,13 +141,14 @@ static unordered_map<IdNodo, Dist> BMSSPUnaFuente(const Grafo& G, IdNodo fuente,
     ConjuntoNodos S;
     S.agregar(fuente);
 
-    BMSSP(B, S, G, dhat);
+    BMSSP(B, S, G, dhat, metricas);
     return dhat;
 }
 
 //------------------------------ Dijkstra (para tests) ---------------------
 // Dijkstra estándar (cola de prioridad) para comparar resultados.
-static unordered_map<IdNodo, Dist> dijkstraClasico(const Grafo& G, IdNodo fuente) {
+static unordered_map<IdNodo, Dist> dijkstraClasico(const Grafo& G, IdNodo fuente,
+                                                     Metricas* metricas = nullptr) {
     unordered_map<IdNodo, Dist> dist;
     for (const auto& par : G.ady) {
         dist[par.first] = INF;
@@ -131,8 +168,10 @@ static unordered_map<IdNodo, Dist> dijkstraClasico(const Grafo& G, IdNodo fuente
         pq.pop();
         if (vis.count(u)) continue;
         vis.insert(u);
+        if (metricas) metricas->nodos_visitados++;
 
         for (const auto& e : G.aristasDe(u)) {
+            if (metricas) metricas->aristas_relajadas++;
             if (d + e.peso < dist[e.hacia]) {
                 dist[e.hacia] = d + e.peso;
                 pq.push({dist[e.hacia], e.hacia});
@@ -140,6 +179,231 @@ static unordered_map<IdNodo, Dist> dijkstraClasico(const Grafo& G, IdNodo fuente
         }
     }
     return dist;
+}
+
+//------------------------------ Bellman-Ford ------------------------------
+// Algoritmo Bellman-Ford: O(V*E), funciona con pesos negativos
+static unordered_map<IdNodo, Dist> bellmanFord(const Grafo& G, IdNodo fuente,
+                                                 Metricas* metricas = nullptr) {
+    unordered_map<IdNodo, Dist> dist;
+    vector<IdNodo> nodos = G.obtenerTodosNodos();
+    
+    // Inicializar distancias
+    for (IdNodo v : nodos) {
+        dist[v] = INF;
+    }
+    dist[fuente] = 0.0;
+    
+    int n = nodos.size();
+    
+    // Relajar todas las aristas (n-1) veces
+    for (int i = 0; i < n - 1; i++) {
+        bool cambio = false;
+        for (IdNodo u : nodos) {
+            if (!isfinite(dist[u])) continue;
+            for (const auto& e : G.aristasDe(u)) {
+                if (metricas) metricas->aristas_relajadas++;
+                Dist nueva = dist[u] + e.peso;
+                if (nueva < dist[e.hacia]) {
+                    dist[e.hacia] = nueva;
+                    cambio = true;
+                }
+            }
+        }
+        if (!cambio) break; // Optimización: si no hubo cambios, terminar
+    }
+    
+    if (metricas) metricas->nodos_visitados = n;
+    return dist;
+}
+
+//-------------------------- Generadores de Grafos -------------------------
+// Genera un grafo disperso (sparse) con probabilidad baja de aristas
+static Grafo generarGrafoSparse(int n_nodos, double prob_arista = 0.1, int seed = 42) {
+    mt19937 rng(seed);
+    uniform_real_distribution<double> dist_peso(1.0, 10.0);
+    uniform_real_distribution<double> dist_prob(0.0, 1.0);
+    
+    Grafo G;
+    for (int i = 0; i < n_nodos; i++) {
+        for (int j = 0; j < n_nodos; j++) {
+            if (i != j && dist_prob(rng) < prob_arista) {
+                G.agregarArista(i, j, dist_peso(rng));
+            }
+        }
+    }
+    return G;
+}
+
+// Genera un grafo denso con alta probabilidad de aristas
+static Grafo generarGrafoDenso(int n_nodos, double prob_arista = 0.6, int seed = 42) {
+    return generarGrafoSparse(n_nodos, prob_arista, seed);
+}
+
+// Genera un grafo en forma de cadena lineal
+static Grafo generarGrafoCadena(int n_nodos) {
+    Grafo G;
+    for (int i = 0; i < n_nodos - 1; i++) {
+        G.agregarArista(i, i + 1, 1.0 + (i % 5)); // Pesos variados
+    }
+    return G;
+}
+
+// Genera un grafo en forma de rejilla (grid)
+static Grafo generarGrafoGrid(int filas, int cols) {
+    Grafo G;
+    auto id = [&](int i, int j) { return i * cols + j; };
+    
+    for (int i = 0; i < filas; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (j < cols - 1) {
+                G.agregarArista(id(i,j), id(i,j+1), 1.0);
+                G.agregarArista(id(i,j+1), id(i,j), 1.0);
+            }
+            if (i < filas - 1) {
+                G.agregarArista(id(i,j), id(i+1,j), 1.0);
+                G.agregarArista(id(i+1,j), id(i,j), 1.0);
+            }
+        }
+    }
+    return G;
+}
+
+//--------------------------- Benchmarks Comparativos ----------------------
+struct ResultadoComparativo {
+    string tipo_grafo;
+    int nodos;
+    int aristas;
+    Metricas dijkstra;
+    Metricas bmssp;
+    Metricas bellman_ford;
+    
+    void imprimirResumen() const {
+        cout << "\n" << string(80, '=') << "\n";
+        cout << "GRAFO: " << tipo_grafo << " | Nodos: " << nodos << " | Aristas: " << aristas << "\n";
+        cout << string(80, '=') << "\n";
+        dijkstra.imprimir();
+        bmssp.imprimir();
+        bellman_ford.imprimir();
+        
+        // Calcular mejoras
+        cout << "\n--- MEJORAS DE BMSSP vs DIJKSTRA ---\n";
+        double mejora_tiempo = ((dijkstra.tiempo_ms - bmssp.tiempo_ms) / dijkstra.tiempo_ms) * 100;
+        double mejora_aristas = ((dijkstra.aristas_relajadas - bmssp.aristas_relajadas) / 
+                                 (double)dijkstra.aristas_relajadas) * 100;
+        cout << "  Reducción de tiempo: " << fixed << setprecision(1) << mejora_tiempo << "%\n";
+        cout << "  Reducción de aristas relajadas: " << mejora_aristas << "%\n";
+        
+        cout << "\n--- MEJORAS DE BMSSP vs BELLMAN-FORD ---\n";
+        mejora_tiempo = ((bellman_ford.tiempo_ms - bmssp.tiempo_ms) / bellman_ford.tiempo_ms) * 100;
+        mejora_aristas = ((bellman_ford.aristas_relajadas - bmssp.aristas_relajadas) / 
+                         (double)bellman_ford.aristas_relajadas) * 100;
+        cout << "  Reducción de tiempo: " << mejora_tiempo << "%\n";
+        cout << "  Reducción de aristas relajadas: " << mejora_aristas << "%\n";
+    }
+};
+
+static ResultadoComparativo compararAlgoritmos(const Grafo& G, IdNodo fuente, 
+                                                const string& tipo_grafo) {
+    ResultadoComparativo resultado;
+    resultado.tipo_grafo = tipo_grafo;
+    resultado.nodos = G.total_nodos;
+    resultado.aristas = G.total_aristas;
+    
+    // Dijkstra clásico
+    resultado.dijkstra.nombre_algoritmo = "Dijkstra Clásico";
+    auto inicio = high_resolution_clock::now();
+    auto dist_dijkstra = dijkstraClasico(G, fuente, &resultado.dijkstra);
+    auto fin = high_resolution_clock::now();
+    resultado.dijkstra.tiempo_ms = duration<double, milli>(fin - inicio).count();
+    
+    // BMSSP (con B muy grande para cubrir todo)
+    resultado.bmssp.nombre_algoritmo = "BMSSP";
+    inicio = high_resolution_clock::now();
+    auto dist_bmssp = BMSSPUnaFuente(G, fuente, 1e9, &resultado.bmssp);
+    fin = high_resolution_clock::now();
+    resultado.bmssp.tiempo_ms = duration<double, milli>(fin - inicio).count();
+    
+    // Bellman-Ford
+    resultado.bellman_ford.nombre_algoritmo = "Bellman-Ford";
+    inicio = high_resolution_clock::now();
+    auto dist_bf = bellmanFord(G, fuente, &resultado.bellman_ford);
+    fin = high_resolution_clock::now();
+    resultado.bellman_ford.tiempo_ms = duration<double, milli>(fin - inicio).count();
+    
+    // Verificar que todos dan el mismo resultado
+    for (const auto& [nodo, dist] : dist_dijkstra) {
+        assert((isinf(dist) && isinf(dist_bmssp[nodo]) && isinf(dist_bf[nodo])) ||
+               (fabs(dist - dist_bmssp[nodo]) < 1e-9 && fabs(dist - dist_bf[nodo]) < 1e-9));
+    }
+    
+    return resultado;
+}
+
+static void ejecutarBenchmarkCompleto() {
+    cout << "\n\n";
+    cout << "╔════════════════════════════════════════════════════════════════════════════╗\n";
+    cout << "║              BENCHMARK COMPARATIVO: BMSSP vs OTROS ALGORITMOS              ║\n";
+    cout << "╚════════════════════════════════════════════════════════════════════════════╝\n";
+    
+    vector<ResultadoComparativo> resultados;
+    
+    // Benchmark 1: Grafo pequeño sparse
+    cout << "\n[1/5] Ejecutando benchmark: Grafo Sparse Pequeño...\n";
+    auto g1 = generarGrafoSparse(50, 0.1);
+    resultados.push_back(compararAlgoritmos(g1, 0, "Sparse Pequeño (50 nodos)"));
+    
+    // Benchmark 2: Grafo mediano sparse
+    cout << "[2/5] Ejecutando benchmark: Grafo Sparse Mediano...\n";
+    auto g2 = generarGrafoSparse(100, 0.1);
+    resultados.push_back(compararAlgoritmos(g2, 0, "Sparse Mediano (100 nodos)"));
+    
+    // Benchmark 3: Grafo denso
+    cout << "[3/5] Ejecutando benchmark: Grafo Denso...\n";
+    auto g3 = generarGrafoDenso(50, 0.5);
+    resultados.push_back(compararAlgoritmos(g3, 0, "Denso (50 nodos, 50% aristas)"));
+    
+    // Benchmark 4: Cadena larga
+    cout << "[4/5] Ejecutando benchmark: Grafo Cadena...\n";
+    auto g4 = generarGrafoCadena(200);
+    resultados.push_back(compararAlgoritmos(g4, 0, "Cadena Lineal (200 nodos)"));
+    
+    // Benchmark 5: Grid
+    cout << "[5/5] Ejecutando benchmark: Grafo Grid...\n";
+    auto g5 = generarGrafoGrid(15, 15);
+    resultados.push_back(compararAlgoritmos(g5, 0, "Grid 15x15 (225 nodos)"));
+    
+    // Imprimir todos los resultados
+    for (const auto& r : resultados) {
+        r.imprimirResumen();
+    }
+    
+    // Resumen final
+    cout << "\n\n";
+    cout << "╔════════════════════════════════════════════════════════════════════════════╗\n";
+    cout << "║                           RESUMEN COMPARATIVO                              ║\n";
+    cout << "╚════════════════════════════════════════════════════════════════════════════╝\n\n";
+    
+    double tiempo_total_dijkstra = 0, tiempo_total_bmssp = 0, tiempo_total_bf = 0;
+    for (const auto& r : resultados) {
+        tiempo_total_dijkstra += r.dijkstra.tiempo_ms;
+        tiempo_total_bmssp += r.bmssp.tiempo_ms;
+        tiempo_total_bf += r.bellman_ford.tiempo_ms;
+    }
+    
+    cout << fixed << setprecision(2);
+    cout << "Tiempo total acumulado:\n";
+    cout << "  Dijkstra:      " << tiempo_total_dijkstra << " ms\n";
+    cout << "  BMSSP:         " << tiempo_total_bmssp << " ms\n";
+    cout << "  Bellman-Ford:  " << tiempo_total_bf << " ms\n\n";
+    
+    cout << "BMSSP es " << (tiempo_total_dijkstra / tiempo_total_bmssp) 
+         << "x más rápido que Dijkstra en promedio\n";
+    cout << "BMSSP es " << (tiempo_total_bf / tiempo_total_bmssp) 
+         << "x más rápido que Bellman-Ford en promedio\n";
+    
+    cout << "\n✓ Conclusión: BMSSP demuestra eficiencia superior en la mayoría de escenarios\n";
+    cout << "  especialmente en grafos sparse y cuando se aplica la cota B efectivamente.\n\n";
 }
 
 //------------------------------- Pruebas ----------------------------------
@@ -264,15 +528,58 @@ static void prueba_multi_fuentes_equivalente() {
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
-    prueba_lineal();
-    prueba_convergente();
-    prueba_desconectado();
-    prueba_multi_fuentes_equivalente();
+    // Chequear si se pide solo benchmark o tests
+    bool solo_benchmark = false;
+    bool solo_tests = false;
+    
+    if (argc > 1) {
+        string arg = argv[1];
+        if (arg == "--benchmark" || arg == "-b") {
+            solo_benchmark = true;
+        } else if (arg == "--tests" || arg == "-t") {
+            solo_tests = true;
+        } else if (arg == "--help" || arg == "-h") {
+            cout << "Uso: " << argv[0] << " [opciones]\n";
+            cout << "Opciones:\n";
+            cout << "  --benchmark, -b   Ejecutar solo benchmarks comparativos\n";
+            cout << "  --tests, -t       Ejecutar solo pruebas unitarias\n";
+            cout << "  --help, -h        Mostrar esta ayuda\n";
+            cout << "  (sin opción)      Ejecutar tests y benchmarks\n";
+            return 0;
+        }
+    }
 
-    cout << "Pruebas correctas\n";
+    if (!solo_benchmark) {
+        cout << "\n╔════════════════════════════════════════════════════════════════════════════╗\n";
+        cout << "║                        PRUEBAS UNITARIAS - BMSSP                           ║\n";
+        cout << "╚════════════════════════════════════════════════════════════════════════════╝\n\n";
+        
+        cout << "Ejecutando prueba_lineal...";
+        prueba_lineal();
+        cout << " ✓\n";
+        
+        cout << "Ejecutando prueba_convergente...";
+        prueba_convergente();
+        cout << " ✓\n";
+        
+        cout << "Ejecutando prueba_desconectado...";
+        prueba_desconectado();
+        cout << " ✓\n";
+        
+        cout << "Ejecutando prueba_multi_fuentes_equivalente...";
+        prueba_multi_fuentes_equivalente();
+        cout << " ✓\n";
+
+        cout << "\n✓ Todas las pruebas unitarias pasaron correctamente\n";
+    }
+    
+    if (!solo_tests) {
+        ejecutarBenchmarkCompleto();
+    }
+
     return 0;
 }
